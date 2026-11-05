@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Заявки с формы (Gigachat, аноним, B24)</title>
+<style>
+  :root {
+    --blue: #1f5fd0;
+    --blue-dark: #17479c;
+    --green: #1a8a4a;
+    --red: #c9403c;
+    --amber: #b07d10;
+    --bg: #f2f4f8;
+    --card: #ffffff;
+    --text: #23272f;
+    --muted: #6b7280;
+    --line: #e4e8ef;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header.app h1 { margin: 0 0 4px; font-size: 26px; }
+  header.app p  { margin: 0 0 24px; color: var(--muted); }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(20, 30, 60, .06);
+    margin-bottom: 20px;
+  }
+
+  .tests { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+  .hint {
+    margin: 0 0 14px; font-size: 13.5px; font-style: italic; color: var(--muted);
+  }
+  .contact-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;
+  }
+  .contact-grid input {
+    width: 100%; font: inherit; font-size: 14.5px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid var(--line); background: #fbfcfe; color: var(--text);
+  }
+  .contact-grid input:focus { outline: 2px solid #bcd2f7; border-color: var(--blue); }
+  .contact-grid input.invalid { border-color: var(--red); background: #fdf8f7; }
+  .fieldError {
+    display: block; min-height: 16px; margin-top: 4px;
+    font-size: 12px; color: var(--red);
+  }
+  @media (max-width: 640px) { .contact-grid { grid-template-columns: 1fr; } }
+  button.test {
+    font: inherit; font-size: 13.5px;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: #f7f9fc; color: var(--text);
+    cursor: pointer;
+  }
+  button.test:hover { border-color: var(--blue); color: var(--blue); }
+
+  textarea#input {
+    width: 100%; min-height: 150px; resize: vertical;
+    font: inherit; padding: 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: #fbfcfe; color: var(--text);
+  }
+  textarea#input:focus { outline: 2px solid #bcd2f7; border-color: var(--blue); }
+
+  .actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  button#process {
+    font: inherit; font-weight: 600; font-size: 16px;
+    padding: 11px 28px; border-radius: 10px; border: none;
+    background: var(--blue); color: #fff; cursor: pointer;
+  }
+  button#process:hover { background: var(--blue-dark); }
+  button#process:disabled { background: #9db4d9; cursor: wait; }
+
+  .spinner { display: none; align-items: center; gap: 10px; color: var(--muted); }
+  .spinner.on { display: inline-flex; }
+  .wheel {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 3px solid #cdd8ea; border-top-color: var(--blue);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error {
+    display: none;
+    background: #fdf1f0; border: 1px solid #f2c7c5; color: #8c2f2c;
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
+  }
+  .error.on { display: block; }
+
+  .card { display: none; }
+  .card.on { display: block; }
+
+  .mask-panel {
+    display: none;
+    background: #fbfcfe; border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 18px; font-size: 13.5px;
+  }
+  .mask-panel.on { display: block; }
+  .mask-panel summary { cursor: pointer; font-weight: 600; color: var(--text); }
+  #maskedText {
+    margin: 10px 0 0; white-space: pre-wrap; word-break: break-word;
+    font-family: Consolas, "Courier New", monospace; font-size: 12.5px;
+    color: var(--text); background: #f4f7fb; border-radius: 8px; padding: 10px 12px;
+  }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .badge {
+    font-size: 13.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  }
+  .badge.lead-target { background: #e3f5ea; color: var(--green); }
+  .badge.lead-other  { background: #fdecec; color: var(--red); }
+  .badge.lead-unclear{ background: #fbf2dd; color: var(--amber); }
+  .badge.human-no    { background: #e3f5ea; color: var(--green); }
+  .badge.human-yes   { background: #fdecec; color: var(--red); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field.full { grid-column: 1 / -1; }
+  .field h3 {
+    margin: 0 0 6px; font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  }
+  .field p, .field ul { margin: 0; }
+  .field ul { padding-left: 20px; }
+  .field li { margin: 3px 0; }
+
+  .draft {
+    background: #f7f9fc; border: 1px dashed var(--line);
+    border-radius: 10px; padding: 12px 14px; white-space: pre-wrap;
+  }
+
+  .bitrix-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+  button#bitrixBtn {
+    font: inherit; font-size: 14.5px; padding: 9px 18px; border-radius: 10px;
+    border: 1px solid var(--line); background: #f7f9fc; color: var(--text); cursor: pointer;
+  }
+  button#bitrixBtn:hover { border-color: var(--blue); color: var(--blue); }
+  button#bitrixBtn:disabled { color: var(--muted); cursor: default; }
+  button#bitrixBtn:disabled:hover { border-color: var(--line); color: var(--muted); }
+  #bitrixStatus { font-size: 13.5px; color: var(--muted); }
+  #bitrixStatus.fail { color: var(--red); }
+
+  .empty { color: var(--muted); }
+
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <h1>Заявки с формы (Gigachat, аноним, B24)</h1>
+    <p>Офисная мебель: столы, кресла, шкафы · доставка · сборка</p>
+  </header>
+
+  <div id="error" class="error" role="alert"></div>
+
+  <div class="panel">
+    <p class="hint">«Заполните поле контакта и текст заявки. Мы обязательно с Вами свяжемся.»</p>
+    <div class="contact-grid">
+      <div class="field-mini">
+        <input id="cname" type="text" placeholder="Имя" autocomplete="name">
+        <span class="fieldError" id="cnameError"></span>
+      </div>
+      <div class="field-mini">
+        <input id="cphone" type="tel" placeholder="Телефон, например +7 900 123-45-67" autocomplete="tel">
+        <span class="fieldError" id="cphoneError"></span>
+      </div>
+      <div class="field-mini">
+        <input id="cemail" type="email" placeholder="Почта, например ivan@mail.ru" autocomplete="email">
+        <span class="fieldError" id="cemailError"></span>
+      </div>
+    </div>
+    <div class="tests">
+      <button type="button" class="test" data-test="full">Пример 1 · полная заявка</button>
+      <button type="button" class="test" data-test="short">Пример 2 · короткая</button>
+      <button type="button" class="test" data-test="conflict">Пример 3 · конфликтная</button>
+      <button type="button" class="test" data-test="return">Пример 4 · возврат средств</button>
+    </div>
+    <textarea id="input" placeholder="Вставьте текст заявки и нажмите «Обработать»…"></textarea>
+    <div class="actions">
+      <button id="process" type="button">Обработать</button>
+      <span class="spinner" id="spinner"><span class="wheel"></span> Обрабатываем заявку — это занимает несколько секунд…</span>
+    </div>
+  </div>
+
+  <div id="card" class="panel card">
+    <div class="badges">
+      <span class="badge" id="badgeLead"></span>
+      <span class="badge" id="badgeHuman"></span>
+    </div>
+    <div class="grid">
+      <div class="field"><h3>Компания</h3><p id="company"></p></div>
+      <div class="field"><h3>Суть запроса</h3><p id="summary"></p></div>
+      <div class="field full"><h3>Известные данные</h3><ul id="keyData"></ul></div>
+      <div class="field full"><h3>Чего не хватает</h3><ul id="missingData"></ul></div>
+      <div class="field full"><h3>Следующий шаг</h3><p id="nextStep"></p></div>
+      <div class="field full"><h3>Черновик ответа клиенту</h3><div class="draft" id="draft"></div></div>
+      <div class="field full"><h3>Нужен менеджер</h3><p id="humanInfo"></p></div>
+    </div>
+    <div class="bitrix-row">
+      <button id="bitrixBtn" type="button">Отправить в Битрикс24</button>
+      <span id="bitrixStatus"></span>
+    </div>
+  </div>
+
+  <details id="maskPanel" class="mask-panel" open>
+    <summary>Тестовый модуль: анонимизированный текст, ушедший в нейросеть</summary>
+    <pre id="maskedText"></pre>
+  </details>
+
+  <p style="color:var(--muted);font-size:13px">
+    Данные в примерах синтетические. Персональные данные (имя, телефон, почта, адрес и т.п.)
+    перед отправкой в GigaChat API заменяются метками вида [ТЕЛЕФОН_1], а в ответе
+    автоматически возвращаются настоящие значения.
+  </p>
+</div>
+
+<script>
+"use strict";
+
+// Тестовые заявки для кнопок подстановки
+const TESTS = {
+  full: "Здравствуйте! Я офис-менеджер компании \"Альфа-Логистик\". Мы переезжаем в новый офис на 40 рабочих мест и хотим заказать поставку и сборку офисной мебели: столы, кресла и шкафы. Переезд — в начале следующего месяца, бюджет около 1,5 млн рублей. Пришлите, пожалуйста, коммерческое предложение.",
+  short: "Добрый день, сколько у вас стоят офисные кресла? Нужно несколько штук.",
+  conflict: "Это уже третье письмо! Заказ должны были привезти в понедельник, сейчас четверг — ни мебели, ни звонка. Менеджер не берёт трубку. Если завтра ничего не изменится, будем отказываться и требовать возврат предоплаты.",
+  return: "Это из компании Ареал. Нам привезли пять кресел не той модели и не того цвета. Заказ от 15 сентября. Просим забрать мебель и вернуть 20 000 р."
+};
+
+const LEAD_BADGES = {
+  "целевой":   { text: "Целевая заявка",   cls: "lead-target"  },
+  "нецелевой": { text: "Нецелевая заявка", cls: "lead-other"   },
+  "неясно":    { text: "Неясная заявка",   cls: "lead-unclear" }
+};
+
+const $ = (id) => document.getElementById(id);
+const inputEl = $("input"), processBtn = $("process"),
+      spinnerEl = $("spinner"), errorEl = $("error"), cardEl = $("card");
+
+const cName = $("cname"), cPhone = $("cphone"), cEmail = $("cemail");
+const bitrixBtn = $("bitrixBtn"), bitrixStatus = $("bitrixStatus");
+let lastResult = null;
+
+// ---------- Валидация контактных полей ----------
+
+function fieldError(inputId, errorId, message) {
+  $(inputId).classList.add("invalid");
+  $(errorId).textContent = message;
+}
+
+function clearFieldError(inputId, errorId) {
+  $(inputId).classList.remove("invalid");
+  $(errorId).textContent = "";
+}
+
+// Сброс подсветки, как только пользователь исправляет поле
+[[cName, "cname", "cnameError"], [cPhone, "cphone", "cphoneError"], [cEmail, "cemail", "cemailError"]]
+  .forEach(([el, inputId, errorId]) => {
+    el.addEventListener("input", () => clearFieldError(inputId, errorId));
+  });
+
+function validateContactFields() {
+  let ok = true;
+
+  // Имя: только буквы, пробел, дефис, минимум 2 символа
+  const name = cName.value.trim();
+  if (!name) {
+    fieldError("cname", "cnameError", "Укажите имя.");
+    ok = false;
+  } else if (!/^[А-Яа-яЁёA-Za-z][А-Яа-яЁёA-Za-z\s'\-]{1,59}$/.test(name)) {
+    fieldError("cname", "cnameError", "Имя: только буквы (можно пробел и дефис), от 2 до 60 символов.");
+    ok = false;
+  }
+
+  // Телефон: 10–11 цифр после удаления всего лишнего
+  const phoneDigits = cPhone.value.replace(/\D/g, "");
+  if (!cPhone.value.trim()) {
+    fieldError("cphone", "cphoneError", "Укажите телефон.");
+    ok = false;
+  } else if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+    fieldError("cphone", "cphoneError", "Телефон: введите 10–11 цифр, например +7 900 123-45-67.");
+    ok = false;
+  }
+
+  // Почта: обычная проверка вида «что-то@домен.зона»
+  const email = cEmail.value.trim();
+  if (!email) {
+    fieldError("cemail", "cemailError", "Укажите почту.");
+    ok = false;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    fieldError("cemail", "cemailError", "Почта: пример записи — ivan@mail.ru.");
+    ok = false;
+  }
+
+  return ok;
+}
+
+// Подстановка тестовых заявок
+document.querySelectorAll("button.test").forEach(btn => {
+  btn.addEventListener("click", () => {
+    inputEl.value = TESTS[btn.dataset.test];
+    hideError(); hideCard();
+    inputEl.focus();
+  });
+});
+
+// Ctrl+Enter — обработать
+inputEl.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") processBtn.click();
+});
+
+processBtn.addEventListener("click", async () => {
+  const text = inputEl.value.trim();
+  hideError(); hideCard();
+
+  // Сначала чистим старые сообщения об ошибках у полей
+  [["cname", "cnameError"], ["cphone", "cphoneError"], ["cemail", "cemailError"]]
+    .forEach(([inputId, errorId]) => clearFieldError(inputId, errorId));
+
+  // Потом проверяем контактные поля и текст заявки
+  const contactsOk = validateContactFields();
+
+  if (!text) {
+    showError("Введите текст заявки в большое поле (кнопки выше подставят пример).");
+    return;
+  }
+  if (!contactsOk) {
+    showError("Проверьте контактные поля — сообщения рядом с ними подскажут, что исправить.");
+    return;
+  }
+
+  processBtn.disabled = true;
+  spinnerEl.classList.add("on");
+  processBtn.textContent = "Обработка…";
+
+  try {
+    const resp = await fetch("/api/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        name: cName.value.trim(),
+        phone: cPhone.value.trim(),
+        email: cEmail.value.trim()
+      })
+    });
+    const data = await resp.json().catch(() => null);
+
+    if (resp.ok && data) {
+      renderCard(data);
+    } else if (data && data.fieldErrors) {
+      // Ошибки конкретных полей, которые вернул сервер
+      const pairs = [
+        ["name", "cname", "cnameError"],
+        ["phone", "cphone", "cphoneError"],
+        ["email", "cemail", "cemailError"]
+      ];
+      let any = false;
+      pairs.forEach(([key, inputId, errorId]) => {
+        if (data.fieldErrors[key]) {
+          fieldError(inputId, errorId, data.fieldErrors[key]);
+          any = true;
+        }
+      });
+      showError(any ? "Проверьте контактные поля." : (data.message || "Проверьте введённые данные."));
+    } else {
+      showError((data && data.message) || "Не удалось обработать заявку. Попробуйте ещё раз.");
+    }
+  } catch (err) {
+    showError("Сервер не отвечает. Проверьте, что программа запущена (python app.py), и страница открыта по адресу http://127.0.0.1:5000.");
+  } finally {
+    processBtn.disabled = false;
+    spinnerEl.classList.remove("on");
+    processBtn.textContent = "Обработать";
+  }
+});
+
+function setText(id, value) {
+  $(id).textContent = value;
+}
+
+function setList(id, items) {
+  const el = $(id);
+  el.textContent = "";
+  if (!items || !items.length) {
+    const li = document.createElement("li");
+    li.textContent = "Не указано";
+    li.className = "empty";
+    el.appendChild(li);
+    return;
+  }
+  items.forEach(item => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    el.appendChild(li);
+  });
+  // один пункт — без маркировки списка, просто строкой
+  if (items.length === 1) { el.style.listStyle = "none"; el.style.paddingLeft = "0"; }
+  else { el.style.listStyle = ""; el.style.paddingLeft = ""; }
+}
+
+function renderCard(data) {
+  const lead = LEAD_BADGES[data.lead_type] || LEAD_BADGES["неясно"];
+  const badgeLead = $("badgeLead");
+  badgeLead.textContent = lead.text;
+  badgeLead.className = "badge " + lead.cls;
+
+  const badgeHuman = $("badgeHuman");
+  if (data.needs_human) {
+    badgeHuman.textContent = "Требуется менеджер";
+    badgeHuman.className = "badge human-yes";
+    setText("humanInfo", "Да — " + (data.human_reason || "причина не указана"));
+  } else {
+    badgeHuman.textContent = "Автоответ возможен";
+    badgeHuman.className = "badge human-no";
+    setText("humanInfo", "Нет — заявку можно обработать без менеджера");
+  }
+
+  setText("company", data.company || "не указано");
+  setText("summary", data.summary || "не указано");
+  setList("keyData", data.key_data);
+  setList("missingData", data.missing_data);
+  setText("nextStep", data.next_step || "не указано");
+  setText("draft", data.reply_draft || "не указано");
+
+  // Тестовый модуль: показываем текст, реально ушедший в нейросеть
+  const maskPanel = $("maskPanel");
+  maskPanel.classList.add("on");
+  $("maskedText").textContent = data.masked_text || "нет данных от сервера";
+  maskPanel.open = true;
+
+  // После новой обработки карточка готова и заявка УЖЕ сама летит в Битрикс24
+  lastResult = data;
+  bitrixBtn.disabled = true;
+  bitrixStatus.textContent = "";
+  bitrixStatus.classList.remove("fail");
+
+  cardEl.classList.add("on");
+  cardEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  // Автоматическая отправка в CRM сразу после обработки
+  sendToBitrix();
+}
+
+async function sendToBitrix() {
+  if (!lastResult) return;
+  bitrixBtn.disabled = true;
+  setBitrixStatus("Отправляем в Битрикс24…");
+
+  try {
+    const resp = await fetch("/api/bitrix/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: cName.value.trim(),
+        phone: cPhone.value.trim(),
+        email: cEmail.value.trim(),
+        text: inputEl.value.trim(),
+        result: lastResult
+      })
+    });
+    const data = await resp.json().catch(() => null);
+
+    if (resp.ok && data) {
+      bitrixStatus.textContent = "Лид создан в Битрикс24 (№ " + (data.lead_id || "?") + ")";
+    } else {
+      bitrixStatus.textContent = (data && data.message) || "Не удалось отправить в Битрикс24.";
+      bitrixStatus.classList.add("fail");
+      bitrixBtn.disabled = false;
+    }
+  } catch (err) {
+    bitrixStatus.textContent = "Сервер не отвечает — проверьте, что программа запущена.";
+    bitrixStatus.classList.add("fail");
+    bitrixBtn.disabled = false;
+  }
+}
+
+function setBitrixStatus(text, fail) {
+  bitrixStatus.textContent = text;
+  bitrixStatus.classList.toggle("fail", !!fail);
+}
+
+// Повторная ручная отправка — только если автоматическая не прошла
+bitrixBtn.addEventListener("click", () => sendToBitrix());
+
+function showError(message) { errorEl.textContent = message; errorEl.classList.add("on"); }
+function hideError() { errorEl.classList.remove("on"); }
+function hideCard() {
+  cardEl.classList.remove("on");
+  $("maskPanel").classList.remove("on");
+}
+</script>
+</body>
+</html>
